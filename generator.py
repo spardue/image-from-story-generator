@@ -79,7 +79,6 @@ def generate_gif(frames, output_path, duration=5000, font_size=15, frame_size=(5
         draw = ImageDraw.Draw(image)
         for sentence in sentences:
             # Draw the text
-            # text_size = draw.textsize(sentence, font=font)
             draw.text((5, y), sentence, fill="yellow", font=font, align="left")
             y += font_size + 2        
         images_with_text.append(image)
