@@ -32,6 +32,23 @@ def add_black_section(image_path, output_path, section_height):
     # Save the image to the output path
     img.save(output_path)
 
+def generate_completion(api_key, prompt_text=""):
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {api_key}'
+    }
+
+    data = {
+      "model": "text-davinci-003",
+      "prompt": prompt_text,
+      "max_tokens": 3800,
+      "temperature": 0
+    }
+
+    response = requests.post('https://api.openai.com/v1/completions', headers=headers, json=data)
+
+    return response.json()
+
 def generate_image_from_text(text, filename):
     print("Generating image for " + text)
     api_key = os.environ.get('DEEPAI_API_KEY')
@@ -60,14 +77,13 @@ def convert_images(input_dir, output_dir, output_format="PNG"):
 
 def generate_gif(frames, output_path, duration=5000, font_size=15, frame_size=(500, 500)):
     # Open the images and resize them to the same size
-    images = [Image.open(frame["image"]).resize(frame_size) for frame in frames]
 
     # Create a font object for the text
-    font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Bold.ttf", font_size)
+    font = ImageFont.truetype("font/LiberationSansNarrow-Bold.ttf", font_size)
 
     # Add text and 40% opacity black layer to each image
     images_with_text = []
-    for i, frame in enumerate(frames):
+    for _, frame in enumerate(frames):
         image = Image.open(frame["image"])
 
         sentences = re.split('\.|,|{\s}', frame["text"])
@@ -88,20 +104,25 @@ def generate_gif(frames, output_path, duration=5000, font_size=15, frame_size=(5
 
 
 parser = argparse.ArgumentParser(description='Generate images from adventure story choices.')
-parser.add_argument('filename', type=str, help='the JSON file containing the adventure story')
+parser.add_argument('--prompt', type=str, help='the prompt text for the adventure story')
 parser.add_argument('--disable-delete', action='store_true', help='disable the delete_directory_contents function')
 parser.add_argument('--disable-image', action='store_true', help='disable the generate_image_from_text function')
 parser.add_argument('--disable-both', action='store_true', help='disable both delete_directory_contents and generate_image_from_text functions')
 args = parser.parse_args()
 
 if __name__ == "__main__":
+    isExist = os.path.exists("./output")
+    if not isExist:
+        os.makedirs("./output")    
     # Read the story from the JSON file
     if not args.disable_both and not args.disable_delete:
         delete_directory_contents("output")
 
-    with open(args.filename, 'r') as f:
-        story = json.load(f)
-
+    prompt = args.prompt + ". Output each sentence in a JSON list"
+    raw_completion = generate_completion(os.environ['CHATGPT_API_KEY'], prompt)
+    raw_json = raw_completion["choices"][0]['text']
+    story = json.loads(raw_json)
+    
     for i, paragraph in enumerate(story):
         if not args.disable_both and not args.disable_image:
             generate_image_from_text(paragraph, i)
@@ -109,6 +130,6 @@ if __name__ == "__main__":
     convert_images("output", "output")
 
     paths = [{"image": f"output/{i}.png", "text": paragraph} for i, paragraph in enumerate(story)]
-    generate_gif(paths, args.filename+".gif")
+    generate_gif(paths, "output.gif")
 
 
