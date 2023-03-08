@@ -8,8 +8,6 @@ CHATGPT_API_KEY=<YOUR-KEY> DEEPAI_API_KEY=<YOUR-KEY> python3 generator.py --prom
 ```
 5) Note that output.gif exists now
 
-## Simple ChatGPT story prompt
-Generate a story about a hyacinth macaw going to college to become a doctor. In each sentence, talk about the hyacinth macaw. Do not include sentences without the phrase "hyacinth macaw". Each sentences in the paragraphs are shorter than 100 characters. Put each paragraph in a JSON list
 
 ### Future
 Generate a build your novel own adventure
