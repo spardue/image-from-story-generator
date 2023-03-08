@@ -56,7 +56,10 @@ def generate_image_from_text(text, filename):
     data = {'text': text, "grid_size" : 1}
     response = requests.post('https://api.deepai.org/api/text2img', headers=headers, data=data)
     response_dict = json.loads(response.text)
-    output_url = response_dict['output_url']
+    try:
+        output_url = response_dict['output_url']
+    except KeyError:
+        print(response_dict)
     img_response = requests.get(output_url)
     with open(f'output/{filename}.jpg', 'wb') as f:
         f.write(img_response.content)
@@ -75,7 +78,7 @@ def convert_images(input_dir, output_dir, output_format="PNG"):
                 output_filepath = os.path.join(output_dir, output_filename)
                 image.save(output_filepath, format=output_format) # Save as output format
 
-def generate_gif(frames, output_path, duration=5000, font_size=15, frame_size=(500, 500)):
+def generate_gif(frames, output_path, duration=5000, font_size=15):
     # Open the images and resize them to the same size
 
     # Create a font object for the text
@@ -86,13 +89,13 @@ def generate_gif(frames, output_path, duration=5000, font_size=15, frame_size=(5
     for _, frame in enumerate(frames):
         image = Image.open(frame["image"])
 
-        sentences = re.split('\.|,|{\s}', frame["text"])
-
         # Add a 40% opacity black layer
         black_layer = Image.new("RGBA", image.size, color=(0, 0, 0, int(255 * 0.5)))
         image = Image.alpha_composite(image, black_layer)
         y = image.height - 100
         draw = ImageDraw.Draw(image)
+
+        sentences = split_long_sentence(frame["text"])
         for sentence in sentences:
             # Draw the text
             draw.text((5, y), sentence, fill="yellow", font=font, align="left")
@@ -102,6 +105,27 @@ def generate_gif(frames, output_path, duration=5000, font_size=15, frame_size=(5
     # Save the GIF with the text and 40% opacity black layer
     images_with_text[0].save(output_path, save_all=True, append_images=images_with_text[1:], duration=duration, loop=0)      
 
+def split_long_sentence(text, max_sentence_length=75):
+    sentences = re.split('\.', text)
+    sentences = [sentence.strip() for sentence in sentences]
+
+    new_sentences = []
+    for sentence in sentences:
+        if len(sentence) > max_sentence_length:
+            new_sentence = sentence
+            while len(new_sentence) > max_sentence_length:
+                split_point = max_sentence_length
+                while split_point > 0 and new_sentence[split_point] != " ":
+                    split_point -= 1
+                if split_point == 0:
+                    # If no space found, split at max_sentence_lengthth character
+                    split_point = max_sentence_length
+                new_sentences.append(new_sentence[:split_point].strip())
+                new_sentence = new_sentence[split_point:].strip()
+            new_sentences.append(new_sentence)
+        else:
+            new_sentences.append(sentence)
+    return new_sentences
 
 parser = argparse.ArgumentParser(description='Generate images from adventure story choices.')
 parser.add_argument('--prompt', type=str, help='the prompt text for the adventure story')
@@ -118,7 +142,7 @@ if __name__ == "__main__":
     if not args.disable_both and not args.disable_delete:
         delete_directory_contents("output")
 
-    prompt = args.prompt + ". Output each sentence in a JSON list"
+    prompt = args.prompt + ". Mention the prompt details in each sentence. Output each sentence in a JSON list."
     raw_completion = generate_completion(os.environ['CHATGPT_API_KEY'], prompt)
     raw_json = raw_completion["choices"][0]['text']
     story = json.loads(raw_json)
